@@ -1,0 +1,7 @@
+{
+    "schemaType": "LAUNCHER",
+    "id": "nr1-command-center-launcher",
+    "description": "Consolidated violation event view",
+    "displayName": "Violation Command Center",
+    "rootNerdletId": "nr1-command-center-nerdlet"
+}

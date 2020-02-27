@@ -1,0 +1,6 @@
+{
+    "schemaType": "NERDLET",
+    "id": "nr1-command-center-nerdlet",
+    "displayName": "Violation Command Center",
+    "description": "Consolidated violation event view"
+}

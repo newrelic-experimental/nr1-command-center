@@ -1,0 +1,102 @@
+@import "../../components/Configurator/styles.scss";
+@import '~react-table/react-table.css';
+
+.loading {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.sortBy {
+  position: absolute;
+  top: 1.7%;
+  left: 94%;
+}
+
+.refreshLabel {
+  float: right;
+  display: block;
+  position: relative;
+  margin-right: 2%;
+  top: 10px;
+}
+
+.modalBtn{
+  margin-top: 20px;
+  margin-right: 5px;
+  background-color: green;
+  color: white;
+}
+
+.notesLink {
+  margin-left: 20px;
+  margin-top: 15px;
+}
+
+.warning {
+  width: 23%;
+  background-color: #e7b416;
+  color: white;
+  font-size: 24px;
+  margin: 4px 4px;
+  text-align: center;
+  display:inline-block;
+}
+
+.warning:hover {
+  background-color: #f0e130;
+}
+
+.warning:focus {
+  background-color: #e7b416;
+}
+
+.healthy {
+  width: 23%;
+  background-color: #008000;
+  color: white;
+  font-size: 24px;
+  margin: 4px 4px;
+  text-align: center;
+  display:inline-block;
+}
+
+.healthy:hover {
+  background-color: #00a000;
+}
+
+.healthy:focus {
+  background-color: #00a000;
+}
+
+.critical {
+  width: 23%;
+  background-color: hsla(0, 50%, 50%, 1);
+  color: white;
+  font-size: 24px;
+  margin: 4px 4px;
+  text-align: center;
+  display:inline-block;
+}
+
+.critical:hover {
+  background-color: red;
+}
+
+.critical:focus {
+  background-color: hsla(0, 50%, 50%, 1);
+}
+
+.acctLabel {
+  font-size: 12px;
+  padding: 10px 0px 0px 0px;
+  display: block;
+  word-wrap: break-word;
+  position: relative;
+  text-align: center;
+}
+
+.openCards {
+  width: 25%;
+  float: left;
+  display: inline-block;
+}
