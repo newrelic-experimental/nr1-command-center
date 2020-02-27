@@ -49,7 +49,7 @@ npm -v
 3. Execute the following commands to clone this repository and run the code locally against your New Relic data:
 
 ```bash
-nr1 nerdpack:clone -r https://github.com/newrelic/nr1-command-center.git
+nr1 nerdpack:clone -r https://github.com/newrelic-experimental/nr1-command-center.git
 cd nr1-command-center
 nr1 nerdpack:serve
 ```
