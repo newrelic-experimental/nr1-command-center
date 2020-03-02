@@ -135,6 +135,15 @@ export default class Alarms extends React.Component {
     })
   }
 
+  checkDomain() {
+    let oneDomain = window.location.ancestorOrigins[0]
+    if (oneDomain.includes("eu")) {
+      return 'https://api.eu.newrelic.com/v2/alerts_violations.json?only_open=true';
+    } else {
+      return 'https://api.newrelic.com/v2/alerts_violations.json?only_open=true';
+    }
+  }
+
   async populateAllData(loadedLinks){
     let sumData = [];
     let tableData = [];
@@ -148,11 +157,12 @@ export default class Alarms extends React.Component {
 
     let megaData = {};
 
+    let apiUri = this.checkDomain()
+
     for (let account of this.state.config.accounts){ //loop through each account
       let acctCrits = 0;
       let acctWarns = 0;
       let allData = [];
-      let apiUri = 'https://api.newrelic.com/v2/alerts_violations.json?only_open=true'
       let r = await this.getData(apiUri, account, allData)
       totalCount += r.length;
 
