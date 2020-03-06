@@ -391,7 +391,7 @@ export default class Alarms extends React.Component {
       {
         Header: () => <strong>Description</strong>,
         accessor: 'label',
-        width: 350
+        width: 400
       },
       {
         Header: () => <strong>Entity</strong>,
