@@ -1,4 +1,4 @@
-@import "../../components/Configurator/styles.scss";
+@import "./components/Configurator/styles.scss";
 @import '~react-table/react-table.css';
 
 .loading {
@@ -88,7 +88,7 @@
 
 .acctLabel {
   font-size: 12px;
-  padding: 10px 0px 0px 0px;
+  padding: 2px 0px 0px 0px;
   display: block;
   word-wrap: break-word;
   position: relative;
@@ -99,4 +99,16 @@
   width: 25%;
   float: left;
   display: inline-block;
+}
+
+.table-search {
+  width: 10.3%;
+  font-size: 12px;
+  border: 1px solid;
+  padding-bottom: 1px;
+  border-color: black;
+  background-color: #ffffff;
+}
+.detailTable {
+  width: 100%;
 }

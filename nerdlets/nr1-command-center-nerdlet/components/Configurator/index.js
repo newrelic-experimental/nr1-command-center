@@ -23,14 +23,9 @@ export default class Configurator extends React.Component {
         this.saveJSONdata = this.saveJSONdata.bind(this)
     }
 
-    async componentDidMount() {
+     componentDidMount() {
        this.loadFromStorage();
-    }
-
-    // static myMethod() {
-    //     console.log("foo")
-    // }
-
+     }
 
 
     saveToStorage(data) {
@@ -71,6 +66,8 @@ export default class Configurator extends React.Component {
             collection: this.props.storageCollectionId,
             documentId: `${this.props.documentId}-metadata`,
             document: JSON.stringify(metaData)
+        }).catch(error => {
+          console.log(error);
         })
 
         dataChunks.forEach((chunk,idx)=>{
@@ -80,6 +77,8 @@ export default class Configurator extends React.Component {
                 collection: this.props.storageCollectionId,
                 documentId: `${this.props.documentId}-chunk-${idx}`,
                 document: JSON.stringify(chunk)
+            }).catch(error => {
+              console.log(error);
             })
         })
         this.setState({persistentData: data, dataLoaded: true})
@@ -106,14 +105,13 @@ export default class Configurator extends React.Component {
     }
 
     loadFromStorage() {
-
         AccountStorageQuery.query({
             accountId: this.props.accountId,
             collection: this.props.storageCollectionId
         }).then(({ data }) => {
             let metaData=data.find((e) => e.id===`${this.props.documentId}-metadata`)
             if(metaData) {
-                //console.log(`Loading ${metaData.document.chunks} chunks`)
+                console.log(`Loading ${metaData.document.chunks} chunks`)
                 let promises=[]
                 let results=[]
                 for(let i=0; i<metaData.document.chunks; i++ ){
@@ -165,8 +163,8 @@ export default class Configurator extends React.Component {
 
     saveJSONdata(data) {
         try {
-            //console.log("jsonData" + data)
             let parsedData=JSON.parse(data)
+            console.log(parsedData);
             this.saveToStorage(parsedData)
             Toast.showToast({
                 type: Toast.TYPE.NORMAL,
