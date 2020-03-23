@@ -1,14 +1,12 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import ReactTable from 'react-table';
-import Configurator from "../../components/Configurator"
-import { AccountStorageMutation, AccountStorageQuery, Button, HeadingText, Spinner, Tabs, TabsItem, Card, CardHeader, Modal, TextField, Toast, Dropdown, DropdownItem, Tooltip} from 'nr1';
+import Configurator from "./components/Configurator"
+import { AccountStorageMutation, AccountStorageQuery, Button, HeadingText, Spinner, Tabs, TabsItem, Card, CardHeader, Modal, TextField, Toast, Dropdown, DropdownItem, Tooltip, UserQuery} from 'nr1';
 import moment from 'moment';
 
 export default class Alarms extends React.Component {
   static propTypes = {
-    launcherUrlState: PropTypes.object,
-    nerdletUrlState: PropTypes.object,
     width: PropTypes.number,
     height: PropTypes.number,
   };
@@ -18,20 +16,26 @@ export default class Alarms extends React.Component {
     this.state = {
       accountSummaryData: null,
       tableData: [],
+      filteredData: [],
       cardData: null,
       refreshingData: false,
       modalHidden: true,
-      linkText: null,
-      displayText: null,
+      linkText: "",
+      displayText: "",
       rowAccountId: null,
       rowViolationId: null,
-      loadedLinks: [],
+      ackInc: null,
+      ackUser: null,
+      ackIncidentGroup: [],
+      ackHidden: true,
+      adminKey: "",
       config: false,
       currentTime: null,
-      sortDisplay: "Sort by"
+      sortDisplay: "Sort by",
+      searchInput: ""
     }
 
-    this.accountId = <your_account_id>; //insert your account ID (preferably a master account)
+    this.accountId = <you_account_id>; //insert your account ID (preferably a master account)
 
     this.schema = {
       "type": "object",
@@ -70,7 +74,8 @@ export default class Alarms extends React.Component {
       }
     }
 
-    this._onClose=this._onClose.bind(this);
+    this._onClose = this._onClose.bind(this);
+    this._onAckClose = this._onAckClose.bind(this);
     this.handleSort = this.handleSort.bind(this);
   }
 
@@ -94,9 +99,7 @@ export default class Alarms extends React.Component {
         return uri;
       }
     }
-
     return null;
-
   }
 
   async getData(api_uri, account, allData) {
@@ -121,9 +124,8 @@ export default class Alarms extends React.Component {
     }
   }
 
-  removeOldLinks(){
+  removeOldLinks(linksFromNerdStore){
     let loadedData = this.state.tableData;
-    let linksFromNerdStore = this.state.loadedLinks;
 
     linksFromNerdStore.forEach(lnk =>{
       var index = loadedData.findIndex(v => v.id == Number(lnk.id));
@@ -144,7 +146,7 @@ export default class Alarms extends React.Component {
     }
   }
 
-  async populateAllData(loadedLinks){
+  async populateAllData(loadedLinks, loadedAcks){
     let sumData = [];
     let tableData = [];
 
@@ -162,6 +164,7 @@ export default class Alarms extends React.Component {
     for (let account of this.state.config.accounts){ //loop through each account
       let acctCrits = 0;
       let acctWarns = 0;
+      let acctIncs = [];
       let allData = [];
       let r = await this.getData(apiUri, account, allData)
       totalCount += r.length;
@@ -172,6 +175,8 @@ export default class Alarms extends React.Component {
         let openedAt = this.convertUnixTimestamp(r[k].opened_at);
         let noteDisplay = null;
         let noteLink = null;
+        let ackUsr = null;
+        let incId = null;
 
         if (r[k].priority == "Critical") {
           criticalCount += 1;
@@ -183,6 +188,11 @@ export default class Alarms extends React.Component {
           acctWarns +=1;
         }
 
+        if (r[k].links.incident_id){
+          incId = r[k].links.incident_id;
+          acctIncs.push(incId);
+        }
+
         //check if violation id returned matches returned ID from nerdstore, add it to table payload if true
         for (var p=0; p < loadedLinks.length; p++){
           if (r[k].id == Number(loadedLinks[p].id)) {
@@ -192,18 +202,28 @@ export default class Alarms extends React.Component {
           }
         }
 
+        //check if violation id returned mathces returned ID from nerdstore (for acks)
+        for (var kp=0; kp < loadedAcks.length; kp++){
+          if (r[k].id == Number(loadedAcks[kp].id)) {
+            ackUsr = loadedAcks[kp].document.userName;
+            break;
+          }
+        }
+
         //data object for all accounts open violations
         tableData.push({
           "company_name": account.name,
           "condition_name": r[k].condition_name,
+          "policy_name": r[k].policy_name,
           "duration": formattedDuration,
           "product": r[k].entity.product,
           "id": r[k].id,
           "label": r[k].label,
           "entity": r[k].entity.name,
+          "ackUser": ackUsr,
           "links": {
             "id": r[k].id,
-            "incident_id": r[k].links.incident_id,
+            "incident_id": incId,
             "condition_id": r[k].links.condition_id,
             "account_id": account.id,
             "policy_id":r[k].links.policy_id
@@ -216,7 +236,13 @@ export default class Alarms extends React.Component {
           "priority": r[k].priority
         })
       }
-      sumData.push({"accountName": account.name, "accountId": account.id, "allViolations": r.length, "crits": acctCrits, "warns": acctWarns }) //data object for summary data
+
+      const distinct = (value, index, self) => {
+        return self.indexOf(value) === index;
+      }
+      const uniqueIncidents = acctIncs.filter(distinct);
+
+      sumData.push({"accountName": account.name, "accountId": account.id, "allViolations": r.length, "crits": acctCrits, "warns": acctWarns, "incidents": uniqueIncidents.length }) //data object for summary data
     }
 
     avgOpenDuration = totalDuration / totalCount;
@@ -233,8 +259,7 @@ export default class Alarms extends React.Component {
     megaData = {
       "cardData": cardData,
       "sumData": sumData,
-      "tabData": tableData,
-      "linkData": loadedLinks
+      "tabData": tableData
     };
 
     return megaData
@@ -284,6 +309,13 @@ export default class Alarms extends React.Component {
       displayText: "",
       linkText: ""
     });
+  }
+
+  _onAckClose(e){
+    this.setState({
+      ackHidden: true,
+      adminKey: null
+    })
   }
 
   updateLinkCell(d, l, vKey) {
@@ -386,17 +418,17 @@ export default class Alarms extends React.Component {
       {
         Header: () => <strong>Account</strong>,
         accessor: 'company_name',
-	      width: 150
+	      width: 150,
       },
       {
         Header: () => <strong>Description</strong>,
         accessor: 'label',
-        width: 400
+        width: 300
       },
       {
         Header: () => <strong>Entity</strong>,
         accessor: 'entity',
-        width: 200
+        width: 180
       },
       {
         Header: () => <strong>Product</strong>,
@@ -418,9 +450,14 @@ export default class Alarms extends React.Component {
         }
       },
       {
+        Header:() => <strong>Policy Name</strong>,
+        accessor: 'policy_name',
+        width: 190
+      },
+      {
         Header:() => <strong>Condition Name</strong>,
         accessor: 'condition_name',
-	      width: 250
+	      width: 240
       },
       {
         Header:() => <strong>Priority</strong>,
@@ -445,14 +482,45 @@ export default class Alarms extends React.Component {
       {
         Header:() => <strong>Incident</strong>,
         accessor: 'links.incident_id',
-	      width: 75,
+	      width: 90,
         Cell: props => (<a href={`https://alerts.newrelic.com/accounts/${props.original.links.account_id}/incidents/${props.value}/violations?id=${props.original.id}`} target="_blank">{props.value}</a>)
+      },
+      {
+        Header: () => <strong>Ack</strong>,
+        id: 'ack',
+        accessor: row => row.ackUser,
+        width: 60,
+        Cell: props => {
+          if (props.original.ackUser !== null){
+            var initials = props.original.ackUser.match(/\b\w/g) || [];
+            initials = ((initials.shift() || '') + (initials.pop() || '')).toUpperCase();
+            return (
+              <div style={{"textAlign": "center"}}>
+                <Tooltip text={props.original.ackUser}><Button style={{"backgroundColor": "black"}} type={Button.TYPE.PRIMARY}><strong>{initials}</strong></Button></Tooltip>
+              </div>
+            )
+          } else {
+            return (
+              <div style={{"textAlign": "center"}}>
+                <Button type={Button.TYPE.PRIMARY} iconType={Button.ICON_TYPE.INTERFACE__OPERATIONS__FOLLOW} onClick={() => this.openAckPopup(props)}>{props.original.ackUser}</Button>
+              </div>
+            )
+          }
+        },
+        sortMethod: (a, b, desc) => {
+          if (!desc) {
+            return !a ? 1 : (!b ? -1 : (a.localeCompare(b)))
+          }
+          else {
+            return !a ? -1 : (!b ? 1 : (a.localeCompare(b)))
+          }
+        }
       },
       {
         Header:() => <strong>Links</strong>,
         id: 'notes',
         accessor: row => row.note.display,
-        width: 225,
+        width: 200,
         Cell: props => {
             return (
               <div>
@@ -474,51 +542,222 @@ export default class Alarms extends React.Component {
 
     return (
       <div>
+        <TextField
+          type={TextField.TYPE.SEARCH}
+          value={this.state.searchInput || ""}
+          placeholder="Search..."
+          className="table-search"
+          onChange={() => this.handleSearchChange(event)}
+        ></TextField>
         <Card className="openCards">
-          <CardHeader title="Total" subtitle={this.state.cardData[0].totalAlertCount} />
+          <CardHeader title="Total" subtitle={this.state.cardData[0].totalAlertCount.toString()} />
         </Card>
         <Card className="openCards">
-          <CardHeader title="Critical" subtitle={this.state.cardData[0].totalCriticalCount} />
+          <CardHeader title="Critical" subtitle={this.state.cardData[0].totalCriticalCount.toString()} />
         </Card>
         <Card className="openCards">
-          <CardHeader title="Warning" subtitle={this.state.cardData[0].totalWarningCount} />
+          <CardHeader title="Warning" subtitle={this.state.cardData[0].totalWarningCount.toString()} />
         </Card>
         <Card className="openCards">
-          <CardHeader title="Avg Time Open" subtitle={this.state.cardData[0].avgOpenDuration} />
+          <CardHeader title="Avg Time Open" subtitle={this.state.cardData[0].avgOpenDuration.toString()} />
         </Card>
         <ReactTable
           className="detailTable"
-          data={this.state.tableData}
+          data={this.state.filteredData && this.state.filteredData.length ? this.state.filteredData: this.state.tableData}
           columns={columns}
         />
       </div>
     )
   }
 
+  handleSearchChange(e) {
+    this.setState({
+      searchInput: e.target.value
+    }, () => {
+      this.globalSearch();
+    })
+  }
+
+  globalSearch() {
+    let { searchInput, tableData } = this.state;
+    let filteredData = tableData.filter(row => {
+      if (row.links.incident_id && row.links.incident_id !== undefined || row.links.incident_id !== null){
+        return (
+          row.company_name.toLowerCase().includes(searchInput.toLowerCase()) ||
+          row.label.toLowerCase().includes(searchInput.toLowerCase()) ||
+          row.entity.toLowerCase().includes(searchInput.toLowerCase()) ||
+          row.policy_name.toLowerCase().includes(searchInput.toLowerCase()) ||
+          row.condition_name.toLowerCase().includes(searchInput.toLowerCase()) ||
+          row.priority.toLowerCase().includes(searchInput.toLowerCase()) ||
+          row.links.incident_id.toString().includes(searchInput.toLowerCase())
+        );
+      } else {
+        return (
+          row.company_name.toLowerCase().includes(searchInput.toLowerCase()) ||
+          row.label.toLowerCase().includes(searchInput.toLowerCase()) ||
+          row.entity.toLowerCase().includes(searchInput.toLowerCase()) ||
+          row.policy_name.toLowerCase().includes(searchInput.toLowerCase()) ||
+          row.priority.toLowerCase().includes(searchInput.toLowerCase()) ||
+          row.condition_name.toLowerCase().includes(searchInput.toLowerCase())
+        );
+      }
+    })
+    this.setState({ filteredData });
+  }
+
+  async getCurrentUser(){
+    let data = await UserQuery.query();
+    return data.data.name;
+  }
+
+  setTempAcks(inc){
+    let incGroup = [];
+    //get all IDs for matching incidents (1 inc -> many violations)
+    for (var k=0; k < this.state.tableData.length; k++) {
+      if (inc == this.state.tableData[k].links.incident_id){
+        incGroup.push(this.state.tableData[k].id); //push unique violation IDs so we know where to insert ack'd user from Nerdstore
+      }
+    }
+    return incGroup;
+  }
+
+  updateAckCell(user, vioKey) {
+    const currentIndex = this.state.tableData.findIndex(vio => vio.id === vioKey),
+          tableCopy = [...this.state.tableData];
+    tableCopy[currentIndex].ackUser = user;
+  }
+
+  openAckPopup(props){
+    this.setState({
+      ackHidden: false,
+      ackInc: props.original.links.incident_id,
+    })
+  }
+
+  async ackIncident(){
+    let {ackInc} = this.state;
+
+    let currUser = await this.getCurrentUser(); //get current user making the ack
+    let violationsToUpdate = await this.setTempAcks(ackInc); //get all violation IDs (rows) to update with ack user
+
+    let r = await this.triggerWebhook(ackInc)
+
+    if (r.status == 200){
+      //loop to update corresponding cells
+      for (var o=0; o < violationsToUpdate.length; o++){
+        let vioToUpdate = violationsToUpdate[o]
+        this.saveAckToNerdstore(currUser, vioToUpdate);
+        this.updateAckCell(currUser, vioToUpdate);
+      }
+      this.setState({
+        ackHidden: true,
+        adminKey: ""
+      }, () => {
+        Toast.showToast({title: "Incident Acknowledged!", type: Toast.TYPE.Normal });
+      })
+    } else {
+      Toast.showToast({title: "Failed to acknowledge incident. Response: " + r.status.toString() + "," + r.statusText, type: Toast.TYPE.CRITICAL});
+      this.setState({
+        adminKey: ""
+      })
+    }
+  }
+
+  async triggerWebhook(inc){
+    const { adminKey } = this.state;
+    const endpoint = 'https://api.newrelic.com/v2/alerts_incidents/' + inc + '/acknowledge.json';
+
+
+    if (adminKey == null || adminKey == undefined || adminKey == "") {
+      Toast.showToast({title: "Text Validation Error! Please Check Input.", type: Toast.TYPE.CRITICAL})
+    } else {
+      let resp = await fetch(endpoint, {method: 'put', headers: {'X-Api-Key': adminKey }}); //Note: Admin API Key required for PUTs
+
+      return resp;
+    }
+  }
+
+  saveAckToNerdstore(usr, aInc){
+    AccountStorageMutation.mutate({
+      accountId: this.accountId,
+      actionType: AccountStorageMutation.ACTION_TYPE.WRITE_DOCUMENT,
+      collection: 'Acknowledgements',
+      documentId: aInc.toString(),
+      document: {
+        userName: usr
+      }
+    }).then((data) => {
+    }).catch(error => {
+      console.debug(error);
+      Toast.showToast({title: error.message, type: Toast.TYPE.CRITICAL });
+    })
+  }
+
+  async loadAcksFromNerdstore(){
+    let allAcks = [];
+    AccountStorageQuery.query({
+      accountId: this.accountId,
+      collection: 'Acknowledgements',
+      fetchPolicyType: AccountStorageQuery.FETCH_POLICY_TYPE.CACHE_FIRST
+    }).then(({ data }) => {
+      if (data.length > 0) {
+        for (var ackCount = 0; ackCount < data.length; ackCount++){
+          allAcks.push(data[ackCount])
+        }
+      }
+    }).catch(error => {
+      console.log(error)
+    })
+
+    return allAcks;
+  }
+
+  removeOldAcks(acksFromNerdStore){
+    let loadedData = this.state.tableData;
+
+    acksFromNerdStore.forEach(ack =>{
+      var ackIndex = loadedData.findIndex(v => v.id == Number(ack.id));
+      if (ackIndex === -1) {
+        this.deleteAckFromNerdstore(ack.id)
+      } else {
+        //do nothing
+      }
+    })
+  }
+
+  deleteAckFromNerdstore(ackId){
+    AccountStorageMutation.mutate({
+      accountId: this.accountId,
+      actionType: AccountStorageMutation.ACTION_TYPE.DELETE_DOCUMENT,
+      collection: 'Acknowledgements',
+      documentId: ackId
+    })
+  }
+
   getIconStyle(acct){
-    if (acct.crits >= 1) {
+    if (acct.crits >= 1 || acct.incidents >= 1) {
       return Button.ICON_TYPE.HARDWARE_AND_SOFTWARE__SOFTWARE__SERVICE__S_ERROR
     }
 
-    if (acct.warns >= 1 && acct.crits == 0) {
+    if (acct.warns >= 1 && acct.crits == 0 && acct.incidents == 0) {
       return Button.ICON_TYPE.INTERFACE__STATE__WARNING;
     }
 
-    if (acct.warns == 0 && acct.crits == 0) {
+    if (acct.warns == 0 && acct.crits == 0 && acct.incidents == 0) {
       return Button.ICON_TYPE.INTERFACE__STATE__HEALTHY;
     }
   }
 
   getClassStyle(acct){
-    if (acct.crits >= 1) {
+    if (acct.crits >= 1 || acct.incidents >= 1) {
       return "critical";
     }
 
-    if (acct.warns >= 1 && acct.crits == 0) {
+    if (acct.warns >= 1 && acct.crits == 0 && acct.incidents == 0) {
       return "warning";
     }
 
-    if (acct.warns == 0 && acct.crits == 0) {
+    if (acct.warns == 0 && acct.crits == 0 && acct.incidents == 0) {
       return "healthy";
     }
   }
@@ -539,18 +778,19 @@ export default class Alarms extends React.Component {
     })
   }
 
-  refreshAccounts(){
-    this.loadLinksFromNerdStore().then(l => {
-      this.populateAllData(l).then(acctData => {
-        this.setState({
-          refreshingData: false,
-          accountSummaryData: acctData.sumData,
-          tableData: acctData.tabData,
-          cardData: acctData.cardData,
-          loadedLinks: acctData.linkData
-        }, () => {
-          this.removeOldLinks()
-        })
+  async refreshAccounts(){
+    let l = await this.loadLinksFromNerdStore();
+    let a = await this.loadAcksFromNerdstore();
+
+    this.populateAllData(l, a).then(acctData => {
+      this.setState({
+        refreshingData: false,
+        accountSummaryData: acctData.sumData,
+        tableData: acctData.tabData,
+        cardData: acctData.cardData
+      }, () => {
+        this.removeOldLinks(l);
+        this.removeOldAcks(a);
       })
     })
   }
@@ -677,7 +917,7 @@ export default class Alarms extends React.Component {
   }
 
   render() {
-    const { accountSummaryData, tableData, cardData, config, refreshingData, linkText, displayText, currentTime, sortDisplay } = this.state;
+    const { accountSummaryData, tableData, cardData, config, refreshingData, linkText, displayText, adminKey, ackInc, currentTime, sortDisplay } = this.state;
 
     const sortItems = ['A-Z', 'Z-A', 'Critical', 'Warning', 'Healthy'];
 
@@ -698,13 +938,16 @@ export default class Alarms extends React.Component {
             <TabsItem value="Home" label={"Summary (" + accountSummaryData.length + ")"}>
               {accountSummaryData.map(acct =>
                 <Button
+                  key={acct.accountName}
                   id="acct"
                   iconType={this.getIconStyle(acct)}
                   className={this.getClassStyle(acct)}
                   onClick={() => {this.navigateToIncident(acct.accountId)}}
                 >{acct.accountName}
-                <label className="acctLabel" htmlFor="acct"> Critical Violations - <strong>{acct.crits}</strong> </label>
+                <br />
+                <label style={{"paddingTop": "10px"}} className="acctLabel" htmlFor="acct"> Critical Violations - <strong>{acct.crits}</strong> </label>
                 <label className="acctLabel" htmlFor="acct"> Warning Violations - <strong>{acct.warns}</strong> </label>
+                <label className="acctLabel" htmlFor="acct"> Unique Incidents - <strong>{acct.incidents}</strong> </label>
                 </Button>
               )}
               <div className="sortBy">
@@ -721,10 +964,16 @@ export default class Alarms extends React.Component {
               {this.renderTableData()}
               <Modal hidden={this.state.modalHidden} onClose={() => this._onClose()}>
                 <HeadingText><strong>Edit Link</strong></HeadingText>
-                <TextField value={displayText} onChange={(e) => this.setState({displayText: e.target.value})} label="Text to Display"/>
-                <TextField value={linkText} onChange={(e) => this.setState({linkText: e.target.value})} label="Link To"/>
+                <TextField value={displayText || ""} onChange={(e) => this.setState({displayText: e.target.value})} label="Text to Display"/>
+                <TextField value={linkText || ""} onChange={(e) => this.setState({linkText: e.target.value})} label="Link To"/>
                 <Button type={Button.TYPE.PRIMARY} className="modalBtn" onClick={() => this.saveLinkToNerdStore()}>Save</Button>
                 <Button type={Button.TYPE.DESTRUCTIVE} className="modalBtn" onClick={this._onClose}>Close</Button>
+              </Modal>
+              <Modal hidden={this.state.ackHidden} onClose={() => this._onAckClose()}>
+                <HeadingText><strong>Acknowledge Incident</strong></HeadingText>
+                <TextField type={TextField.TYPE.PASSWORD} value={adminKey || ""} onChange={(e) => this.setState({adminKey: e.target.value})} label="Admin API Key"/>
+                <Button type={Button.TYPE.PRIMARY} className="modalBtn" onClick={() => this.ackIncident(adminKey)}>Acknowledge</Button>
+                <Button type={Button.TYPE.DESTRUCTIVE} className="modalBtn" onClick={this._onAckClose}>Close</Button>
               </Modal>
             </TabsItem>
           </Tabs>

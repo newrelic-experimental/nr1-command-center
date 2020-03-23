@@ -6,11 +6,11 @@ A consolidated violation event view that provides details on opened critical or 
 
 ## Usage
 
-Quickly see which accounts have open warning/critical violations and directly navigate to New Relic Alerts for a given tile.
+Quickly see which accounts have open warning/critical violations or incidents and directly navigate to New Relic Alerts for a given tile.
 
 ![Summary](screenshots/summary.png)
 
-Drill into a table view of all violations and add notes and links to external sources.
+Drill into a table view of all violations, add notes and links to external sources, and acknowledge incidents directly from the table.
 
 ![Drilldown](screenshots/drilldown.png)
 
@@ -60,7 +60,7 @@ Visit [https://one.newrelic.com/?nerdpacks=local](https://one.newrelic.com/?nerd
 
 ## Deploying this Nerdpack
 
-Open a command prompt in the nerdpack's directory and run the following commands.
+Open a command prompt in the nerdpack's directory and run the following commands:
 
 ```bash
 # If you need to create a new uuid for the account to which you're deploying this Nerdpack, use the following
@@ -72,3 +72,17 @@ nr1 nerdpack:subscribe [-c [DEV|BETA|STABLE]] [--profile=your_profile_name]
 ```
 
 Visit [https://one.newrelic.com](https://one.newrelic.com), navigate to the Nerdpack, and :sparkles:
+
+## Updating this Nerdpack
+
+1. Copy the current uuid - this can be obtained from the URL of the currently deployed nerdpack:
+![UUID](screenshots/uuid.png)
+
+2. Modify the id field within `nr1.json` with this copied id.
+
+3. Open a command prompt in the nerdpack's directory and run the following commands:
+```bash
+nr1 nerdpack:publish [--profile=your_profile_name]
+nr1 nerdpack:subscribe [-c [DEV|BETA|STABLE]] [--profile=your_profile_name]
+```
+**NOTE:** Make sure your accountId configured in `alarms.js` matches the profile you are using to publish the new version.
