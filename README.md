@@ -1,6 +1,8 @@
 [![New Relic Experimental header](https://github.com/newrelic/open-source-office/raw/master/examples/categories/images/Experimental.png)](https://github.com/newrelic/open-source-office/blob/master/examples/categories/index.md#new-relic-experimental)
 
-# NR1 Violation Command Center
+# New Relic One Violation Command Center (nr1-command-center)
+
+![CI](https://github.com/newrelic-experimental/nr1-command-center/workflows/CI/badge.svg) ![GitHub release (latest SemVer including pre-releases)](https://img.shields.io/github/v/release/newrelic-experimental/nr1-command-center?include_prereleases&sort=semver) [![Snyk](https://snyk.io/test/github/newrelic-experimental/nr1-command-center/badge.svg)](https://snyk.io/test/github/newrelic-experimental/nr1-command-center)
 
 A consolidated violation event view that provides details on opened critical or warning events triggered via New Relic Alerts.
 
