@@ -1,6 +1,10 @@
 @import "./components/Configurator/styles.scss";
 @import '~react-table/react-table.css';
 
+.start {
+  display: inline-block;
+}
+
 .loading {
   text-align: center;
   margin-bottom: 10px;
