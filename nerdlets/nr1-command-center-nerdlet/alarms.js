@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import ReactTable from 'react-table';
 import Configurator from "./components/Configurator"
-import { AccountStorageMutation, AccountStorageQuery, Button, HeadingText, Spinner, Tabs, TabsItem, Card, CardHeader, Modal, TextField, Toast, Dropdown, DropdownItem, Tooltip, UserQuery} from 'nr1';
+import { AccountStorageMutation, AccountStorageQuery, Button, HeadingText, Spinner, Tabs, TabsItem, Card, CardHeader, Modal, TextField, Toast, Dropdown, DropdownItem, Tooltip, UserQuery, Icon} from 'nr1';
 import moment from 'moment';
 
 export default class Alarms extends React.Component {
@@ -35,7 +35,7 @@ export default class Alarms extends React.Component {
       searchInput: ""
     }
 
-    this.accountId = <you_account_id>; //insert your account ID (preferably a master account)
+    this.accountId = <your_account_id>; //insert your account ID (preferably a master account)
 
     this.schema = {
       "type": "object",
@@ -107,6 +107,12 @@ export default class Alarms extends React.Component {
     let resp = await fetch(api_uri, {method: 'get', headers: {'X-Api-Key': account.value}})
     if (resp.status != 200) {
       console.debug("Error retrieving data for account " + account.name + "." + " Status: " + resp.statusText);
+      Toast.showToast({
+        title: "Data Retrieval Error - Account: " + account.name,
+        description: "Received status: " + resp.statusText + ". Please validate API Key / Account ID inputs.",
+        sticky: true,
+        type: Toast.TYPE.CRITICAL
+      })
     }
     let respJson = await resp.json();
     allData = await allData.concat(respJson.violations);
@@ -167,83 +173,89 @@ export default class Alarms extends React.Component {
       let acctIncs = [];
       let allData = [];
       let r = await this.getData(apiUri, account, allData)
-      totalCount += r.length;
 
-      for (var k=0; k < r.length; k++){ //loop through each violation
-        totalDuration += r[k].duration
-        let formattedDuration = this.secondsToHms(r[k].duration);
-        let openedAt = this.convertUnixTimestamp(r[k].opened_at);
-        let noteDisplay = null;
-        let noteLink = null;
-        let ackUsr = null;
-        let incId = null;
+      if (r.includes(undefined)) {
+        //do nothing
+      } else {
+        totalCount += r.length;
 
-        if (r[k].priority == "Critical") {
-          criticalCount += 1;
-          acctCrits += 1;
-        }
+        for (var k=0; k < r.length; k++){ //loop through each violation
+          totalDuration += r[k].duration
+          let formattedDuration = this.secondsToHms(r[k].duration);
+          let openedAt = this.convertUnixTimestamp(r[k].opened_at);
+          let noteDisplay = null;
+          let noteLink = null;
+          let ackUsr = null;
+          let incId = null;
 
-        if (r[k].priority == "Warning") {
-          warningCount += 1;
-          acctWarns +=1;
-        }
-
-        if (r[k].links.incident_id){
-          incId = r[k].links.incident_id;
-          acctIncs.push(incId);
-        }
-
-        //check if violation id returned matches returned ID from nerdstore, add it to table payload if true
-        for (var p=0; p < loadedLinks.length; p++){
-          if (r[k].id == Number(loadedLinks[p].id)) {
-            noteDisplay = loadedLinks[p].document.displayText;
-            noteLink = loadedLinks[p].document.linkText;
-            break;
+          if (r[k].priority == "Critical") {
+            criticalCount += 1;
+            acctCrits += 1;
           }
-        }
 
-        //check if violation id returned mathces returned ID from nerdstore (for acks)
-        for (var kp=0; kp < loadedAcks.length; kp++){
-          if (r[k].id == Number(loadedAcks[kp].id)) {
-            ackUsr = loadedAcks[kp].document.userName;
-            break;
+          if (r[k].priority == "Warning") {
+            warningCount += 1;
+            acctWarns +=1;
           }
-        }
 
-        //data object for all accounts open violations
-        tableData.push({
-          "company_name": account.name,
-          "condition_name": r[k].condition_name,
-          "policy_name": r[k].policy_name,
-          "duration": formattedDuration,
-          "product": r[k].entity.product,
-          "id": r[k].id,
-          "label": r[k].label,
-          "entity": r[k].entity.name,
-          "ackUser": ackUsr,
-          "links": {
+          if (r[k].links.incident_id){
+            incId = r[k].links.incident_id;
+            acctIncs.push(incId);
+          }
+
+          //check if violation id returned matches returned ID from nerdstore, add it to table payload if true
+          for (var p=0; p < loadedLinks.length; p++){
+            if (r[k].id == Number(loadedLinks[p].id)) {
+              noteDisplay = loadedLinks[p].document.displayText;
+              noteLink = loadedLinks[p].document.linkText;
+              break;
+            }
+          }
+
+          //check if violation id returned mathces returned ID from nerdstore (for acks)
+          for (var kp=0; kp < loadedAcks.length; kp++){
+            if (r[k].id == Number(loadedAcks[kp].id)) {
+              ackUsr = loadedAcks[kp].document.userName;
+              break;
+            }
+          }
+
+          //data object for all accounts open violations
+          tableData.push({
+            "company_name": account.name,
+            "condition_name": r[k].condition_name,
+            "policy_name": r[k].policy_name,
+            "duration": formattedDuration,
+            "product": r[k].entity.product,
             "id": r[k].id,
-            "incident_id": incId,
-            "condition_id": r[k].links.condition_id,
-            "account_id": account.id,
-            "policy_id":r[k].links.policy_id
-          },
-          "note": {
-            "display": noteDisplay,
-            "linkText": noteLink
-          },
-          "opened_at": openedAt,
-          "priority": r[k].priority
-        })
-      }
+            "label": r[k].label,
+            "entity": r[k].entity.name,
+            "ackUser": ackUsr,
+            "links": {
+              "id": r[k].id,
+              "incident_id": incId,
+              "condition_id": r[k].links.condition_id,
+              "account_id": account.id,
+              "policy_id":r[k].links.policy_id
+            },
+            "note": {
+              "display": noteDisplay,
+              "linkText": noteLink
+            },
+            "opened_at": openedAt,
+            "priority": r[k].priority
+          })
+        }
 
-      const distinct = (value, index, self) => {
-        return self.indexOf(value) === index;
-      }
-      const uniqueIncidents = acctIncs.filter(distinct);
+        const distinct = (value, index, self) => {
+          return self.indexOf(value) === index;
+        }
+        const uniqueIncidents = acctIncs.filter(distinct);
 
-      sumData.push({"accountName": account.name, "accountId": account.id, "allViolations": r.length, "crits": acctCrits, "warns": acctWarns, "incidents": uniqueIncidents.length }) //data object for summary data
-    }
+        sumData.push({"accountName": account.name, "accountId": account.id, "allViolations": r.length, "crits": acctCrits, "warns": acctWarns, "incidents": uniqueIncidents.length }) //data object for summary data
+      } //else
+
+    }//for
 
     avgOpenDuration = totalDuration / totalCount;
     let formattedAvgDuration = this.secondsToHms(avgOpenDuration);
@@ -923,12 +935,19 @@ export default class Alarms extends React.Component {
 
     let render = <Spinner />
 
-    if (!accountSummaryData || !tableData || !cardData || refreshingData) {
-      render = <div className="loading">
+    if (!accountSummaryData || !tableData || !cardData && refreshingData) {
+      render =
+        <div className="loading">
           <HeadingText>Refreshing Account Data...</HeadingText>
           <Spinner />
         </div>
     }
+
+      let start =
+      <div>
+        <Icon style={{marginLeft: "60px", marginTop: "5px"}} className="start" type={Icon.TYPE.INTERFACE__ARROW__ARROW_TOP__V_ALTERNATE}/>
+        <HeadingText style={{marginLeft: "25px", marginTop: "0"}}>Start Here</HeadingText>
+      </div>
 
     if (config && accountSummaryData && tableData && cardData){
       render =
@@ -996,7 +1015,7 @@ export default class Alarms extends React.Component {
           modalTitle="Account Editor"
           modalHelp="Use the form below to configure accounts to report violations on."
       />
-      {render}
+      {config == false ? start : render}
       </>
     )
   }
