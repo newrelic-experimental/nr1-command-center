@@ -278,32 +278,22 @@ export default class Alarms extends React.Component {
   }
 
   secondsToHms(sec){
-    var seconds = parseInt(sec, 10);
+    var seconds = Number(sec);
+    var d = Math.floor(seconds / (3600*24));
+    var h = Math.floor(seconds % (3600*24) / 3600);
+    var m = Math.floor(seconds % 3600 / 60);
+    var s = Math.floor(seconds % 60);
 
-    var days = Math.floor(seconds / (3600*24));
-    if (days <= 9){
-      days = "0" + days;
-    }
-    seconds  -= days*3600*24;
-    var hrs   = Math.floor(seconds / 3600);
-    if (hrs <= 9){
-      hrs = "0" + hrs;
-    }
-    seconds  -= hrs*3600;
-    var mnts = Math.floor(seconds / 60);
-    if (mnts <= 9){
-      mnts = "0" + mnts;
-    }
-    seconds  -= mnts*60;
-    if (seconds <= 9) {
-      seconds = "0" + seconds;
-    }
+    var dDisplay = d <= 9 ? "0" + d : d;
+    var hDisplay = h <= 9 ? "0" + h : h;
+    var mDisplay = m <= 9 ? "0" + m : m;
+    var sDisplay = s <= 9 ? "0" + s : s;
 
-    return days+":"+hrs+":"+mnts+":"+seconds;
+    return dDisplay + ":" + hDisplay + ":" + mDisplay + ":" + sDisplay;
   }
 
   convertUnixTimestamp(t){
-    var newDate = moment(new Date(t)).format('MM/DD/YYYY hh:MM');
+    var newDate = moment(t).format('MM/DD/YYYY, h:mm a');
     return newDate;
   }
 
@@ -486,7 +476,7 @@ export default class Alarms extends React.Component {
       {
         Header: () => <strong>Opened At</strong>,
         accessor: 'opened_at',
-	      width: 110,
+	      width: 134,
         sortMethod: (a, b) => {
           return moment(b) - moment(a)
         }
