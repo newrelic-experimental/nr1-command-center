@@ -2,8 +2,9 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import ReactTable from 'react-table';
 import Configurator from "./components/Configurator"
-import { AccountStorageMutation, AccountStorageQuery, Button, HeadingText, Spinner, Tabs, TabsItem, Card, CardHeader, Modal, TextField, Toast, Dropdown, DropdownItem, Tooltip, UserQuery, Icon} from 'nr1';
+import { AccountStorageMutation, AccountStorageQuery, Button, HeadingText, Spinner, Tabs, TabsItem, Card, CardHeader, Modal, TextField, Toast, Dropdown, DropdownItem, Tooltip, UserQuery, Icon } from 'nr1';
 import moment from 'moment';
+import CsvDownload from 'react-json-to-csv';
 
 export default class Alarms extends React.Component {
   static propTypes = {
@@ -44,7 +45,7 @@ export default class Alarms extends React.Component {
           "type": "array",
           "title": "Accounts",
           "items": {
-            "required": [ "name", "value", "id"],
+            "required": ["name", "value", "id"],
             "properties": {
               "name": {
                 "type": "string",
@@ -79,12 +80,12 @@ export default class Alarms extends React.Component {
     this.handleSort = this.handleSort.bind(this);
   }
 
-  async componentDidMount(){
+  async componentDidMount() {
     this.refreshingData();
     this.interval = setInterval(() => this.refreshingData(), 120000); // DEFAULT REFRESH RATE - 2 minutes
   }
 
-  componentWillUnmount(){
+  componentWillUnmount() {
     clearInterval(this.interval);
   }
 
@@ -92,7 +93,7 @@ export default class Alarms extends React.Component {
     if (link == null) return null;
 
     let paramList = link.split(',');
-    for (var i=0; i < paramList.length; i++) {
+    for (var i = 0; i < paramList.length; i++) {
       let param = paramList[i].split(';');
       if (param[1].indexOf('next') > 0) {
         let uri = param[0].replace('<', '').replace('>', '').trim();
@@ -104,7 +105,7 @@ export default class Alarms extends React.Component {
 
   async getData(api_uri, account, allData) {
     //initial api call
-    let resp = await fetch(api_uri, {method: 'get', headers: {'X-Api-Key': account.value}})
+    let resp = await fetch(api_uri, { method: 'get', headers: { 'X-Api-Key': account.value } })
     if (resp.status != 200) {
       console.debug("Error retrieving data for account " + account.name + "." + " Status: " + resp.statusText);
       Toast.showToast({
@@ -117,7 +118,7 @@ export default class Alarms extends React.Component {
     let respJson = await resp.json();
     allData = await allData.concat(respJson.violations);
     var link = resp.headers.get('link');
-    if (link){ //if link exists, iterate pages
+    if (link) { //if link exists, iterate pages
       if (link.includes("next")) { //check for another page to iterate
         api_uri = this.getNextUrl(link); //parse out next page from header
         let p = await this.getData(api_uri, account, allData); //recursive call to fetch next page
@@ -130,10 +131,10 @@ export default class Alarms extends React.Component {
     }
   }
 
-  removeOldLinks(linksFromNerdStore){
+  removeOldLinks(linksFromNerdStore) {
     let loadedData = this.state.tableData;
 
-    linksFromNerdStore.forEach(lnk =>{
+    linksFromNerdStore.forEach(lnk => {
       var index = loadedData.findIndex(v => v.id == Number(lnk.id));
       if (index === -1) {
         this.deleteLinkFromNerdStore(lnk.id)
@@ -152,7 +153,7 @@ export default class Alarms extends React.Component {
     }
   }
 
-  async populateAllData(loadedLinks, loadedAcks){
+  async populateAllData(loadedLinks, loadedAcks) {
     let sumData = [];
     let tableData = [];
 
@@ -167,7 +168,7 @@ export default class Alarms extends React.Component {
 
     let apiUri = this.checkDomain()
 
-    for (let account of this.state.config.accounts){ //loop through each account
+    for (let account of this.state.config.accounts) { //loop through each account
       let acctCrits = 0;
       let acctWarns = 0;
       let acctIncs = [];
@@ -179,7 +180,7 @@ export default class Alarms extends React.Component {
       } else {
         totalCount += r.length;
 
-        for (var k=0; k < r.length; k++){ //loop through each violation
+        for (var k = 0; k < r.length; k++) { //loop through each violation
           totalDuration += r[k].duration
           let formattedDuration = this.secondsToHms(r[k].duration);
           let openedAt = this.convertUnixTimestamp(r[k].opened_at);
@@ -195,16 +196,16 @@ export default class Alarms extends React.Component {
 
           if (r[k].priority == "Warning") {
             warningCount += 1;
-            acctWarns +=1;
+            acctWarns += 1;
           }
 
-          if (r[k].links.incident_id){
+          if (r[k].links.incident_id) {
             incId = r[k].links.incident_id;
             acctIncs.push(incId);
           }
 
           //check if violation id returned matches returned ID from nerdstore, add it to table payload if true
-          for (var p=0; p < loadedLinks.length; p++){
+          for (var p = 0; p < loadedLinks.length; p++) {
             if (r[k].id == Number(loadedLinks[p].id)) {
               noteDisplay = loadedLinks[p].document.displayText;
               noteLink = loadedLinks[p].document.linkText;
@@ -213,7 +214,7 @@ export default class Alarms extends React.Component {
           }
 
           //check if violation id returned mathces returned ID from nerdstore (for acks)
-          for (var kp=0; kp < loadedAcks.length; kp++){
+          for (var kp = 0; kp < loadedAcks.length; kp++) {
             if (r[k].id == Number(loadedAcks[kp].id)) {
               ackUsr = loadedAcks[kp].document.userName;
               break;
@@ -231,19 +232,19 @@ export default class Alarms extends React.Component {
             "label": r[k].label,
             "entity": r[k].entity.name,
             "ackUser": ackUsr,
+            "opened_at": openedAt,
+            "priority": r[k].priority,
             "links": {
               "id": r[k].id,
               "incident_id": incId,
               "condition_id": r[k].links.condition_id,
               "account_id": account.id,
-              "policy_id":r[k].links.policy_id
+              "policy_id": r[k].links.policy_id
             },
             "note": {
               "display": noteDisplay,
               "linkText": noteLink
-            },
-            "opened_at": openedAt,
-            "priority": r[k].priority
+            }
           })
         }
 
@@ -252,7 +253,7 @@ export default class Alarms extends React.Component {
         }
         const uniqueIncidents = acctIncs.filter(distinct);
 
-        sumData.push({"accountName": account.name, "accountId": account.id, "allViolations": r.length, "crits": acctCrits, "warns": acctWarns, "incidents": uniqueIncidents.length }) //data object for summary data
+        sumData.push({ "accountName": account.name, "accountId": account.id, "allViolations": r.length, "crits": acctCrits, "warns": acctWarns, "incidents": uniqueIncidents.length }) //data object for summary data
       } //else
 
     }//for
@@ -277,10 +278,10 @@ export default class Alarms extends React.Component {
     return megaData
   }
 
-  secondsToHms(sec){
+  secondsToHms(sec) {
     var seconds = Number(sec);
-    var d = Math.floor(seconds / (3600*24));
-    var h = Math.floor(seconds % (3600*24) / 3600);
+    var d = Math.floor(seconds / (3600 * 24));
+    var h = Math.floor(seconds % (3600 * 24) / 3600);
     var m = Math.floor(seconds % 3600 / 60);
     var s = Math.floor(seconds % 60);
 
@@ -292,12 +293,12 @@ export default class Alarms extends React.Component {
     return dDisplay + ":" + hDisplay + ":" + mDisplay + ":" + sDisplay;
   }
 
-  convertUnixTimestamp(t){
+  convertUnixTimestamp(t) {
     var newDate = moment(t).format('MM/DD/YYYY, h:mm a');
     return newDate;
   }
 
-  openLinkModal(props){
+  openLinkModal(props) {
     this.setState({
       modalHidden: false,
       rowAccountId: props.original.links.account_id,
@@ -313,7 +314,7 @@ export default class Alarms extends React.Component {
     });
   }
 
-  _onAckClose(e){
+  _onAckClose(e) {
     this.setState({
       ackHidden: true,
       adminKey: null
@@ -322,12 +323,12 @@ export default class Alarms extends React.Component {
 
   updateLinkCell(d, l, vKey) {
     const currentIndex = this.state.tableData.findIndex(vio => vio.id === vKey),
-          tableCopy = [...this.state.tableData];
+      tableCopy = [...this.state.tableData];
     tableCopy[currentIndex].note.display = d;
     tableCopy[currentIndex].note.linkText = l;
   }
 
-  async saveLinkToNerdStore(){
+  async saveLinkToNerdStore() {
     let display = this.state.displayText;
     let link = this.state.linkText;
     let docKey = this.state.rowViolationId.toString();
@@ -335,7 +336,7 @@ export default class Alarms extends React.Component {
     let hasErrors = await this.validateLinkInput(display, link)
 
     if (hasErrors) {
-      Toast.showToast({title: "Text Validation Error! Please Check Input.", type: Toast.TYPE.CRITICAL})
+      Toast.showToast({ title: "Text Validation Error! Please Check Input.", type: Toast.TYPE.CRITICAL })
     } else {
       this.updateLinkCell(display, link, Number(docKey)); //live update (alleviates having to refresh to pull from nerdstore)
       this.setState({
@@ -351,24 +352,24 @@ export default class Alarms extends React.Component {
             linkText: link
           }
         }).then((data) => {
-          Toast.showToast({title: "Incident Link Saved!", type: Toast.TYPE.Normal });
+          Toast.showToast({ title: "Incident Link Saved!", type: Toast.TYPE.Normal });
           this.resetFormFields();
         }).catch(error => {
           console.log(error);
-          Toast.showToast({title: error.message, type: Toast.TYPE.CRITICAL });
+          Toast.showToast({ title: error.message, type: Toast.TYPE.CRITICAL });
         })
       });
     }
   }
 
-  resetFormFields(){
+  resetFormFields() {
     this.setState({
       displayText: "",
       linkText: ""
     })
   }
 
-  async loadLinksFromNerdStore(){
+  async loadLinksFromNerdStore() {
     let allLinks = [];
     AccountStorageQuery.query({
       accountId: this.accountId,
@@ -376,7 +377,7 @@ export default class Alarms extends React.Component {
       fetchPolicyType: AccountStorageQuery.FETCH_POLICY_TYPE.CACHE_FIRST
     }).then(({ data }) => { //add brackets ({data}) for just data, remove them for seeing errors
       if (data.length > 0) {
-        for (var z=0; z < data.length; z++){
+        for (var z = 0; z < data.length; z++) {
           allLinks.push(data[z])
         }
       }
@@ -387,7 +388,7 @@ export default class Alarms extends React.Component {
     return allLinks;
   }
 
-  deleteLinkFromNerdStore(docId){
+  deleteLinkFromNerdStore(docId) {
     AccountStorageMutation.mutate({
       accountId: this.accountId,
       actionType: AccountStorageMutation.ACTION_TYPE.DELETE_DOCUMENT,
@@ -399,28 +400,28 @@ export default class Alarms extends React.Component {
   validateLinkInput(disT, linkT) {
     let errors = false;
 
-    if (disT == null || disT == undefined || disT == ""){
+    if (disT == null || disT == undefined || disT == "") {
       errors = true;
     }
 
-    if (linkT == null || linkT == undefined || linkT == ""){
+    if (linkT == null || linkT == undefined || linkT == "") {
       errors = true;
     }
 
     return errors;
   }
 
-  renderTableData(){
+  renderTableData() {
     const columns = [
       {
-        Header: () =><strong>ID</strong>,
+        Header: () => <strong>ID</strong>,
         accessor: 'id',
-	      width: 75
+        width: 75
       },
       {
         Header: () => <strong>Account</strong>,
         accessor: 'company_name',
-	      width: 150,
+        width: 150,
       },
       {
         Header: () => <strong>Description</strong>,
@@ -435,7 +436,7 @@ export default class Alarms extends React.Component {
       {
         Header: () => <strong>Product</strong>,
         accessor: 'product',
-	      width: 100
+        width: 100
       },
       {
         Header: () => <Tooltip text="days:hours:minutes:seconds"><strong>Duration</strong></Tooltip>,
@@ -452,39 +453,39 @@ export default class Alarms extends React.Component {
         }
       },
       {
-        Header:() => <strong>Policy Name</strong>,
+        Header: () => <strong>Policy Name</strong>,
         accessor: 'policy_name',
         width: 190
       },
       {
-        Header:() => <strong>Condition Name</strong>,
+        Header: () => <strong>Condition Name</strong>,
         accessor: 'condition_name',
-	      width: 240
+        width: 240
       },
       {
-        Header:() => <strong>Priority</strong>,
+        Header: () => <strong>Priority</strong>,
         accessor: 'priority',
-	      width: 60,
+        width: 60,
         getProps: (state, rowInfo, column) => {
-            return {
-                style: {
-                    color: rowInfo && rowInfo.row.priority === 'Critical' ? 'red' : null,
-                },
-            };
+          return {
+            style: {
+              color: rowInfo && rowInfo.row.priority === 'Critical' ? 'red' : null,
+            },
+          };
         },
       },
       {
         Header: () => <strong>Opened At</strong>,
         accessor: 'opened_at',
-	      width: 134,
+        width: 134,
         sortMethod: (a, b) => {
           return moment(b) - moment(a)
         }
       },
       {
-        Header:() => <strong>Incident</strong>,
+        Header: () => <strong>Incident</strong>,
         accessor: 'links.incident_id',
-	      width: 90,
+        width: 90,
         Cell: props => (<a href={`https://alerts.newrelic.com/accounts/${props.original.links.account_id}/incidents/${props.value}/violations?id=${props.original.id}`} target="_blank">{props.value}</a>)
       },
       {
@@ -493,17 +494,17 @@ export default class Alarms extends React.Component {
         accessor: row => row.ackUser,
         width: 60,
         Cell: props => {
-          if (props.original.ackUser !== null){
+          if (props.original.ackUser !== null) {
             var initials = props.original.ackUser.match(/\b\w/g) || [];
             initials = ((initials.shift() || '') + (initials.pop() || '')).toUpperCase();
             return (
-              <div style={{"textAlign": "center"}}>
-                <Tooltip text={props.original.ackUser}><Button style={{"backgroundColor": "black"}} type={Button.TYPE.PRIMARY}><strong>{initials}</strong></Button></Tooltip>
+              <div style={{ "textAlign": "center" }}>
+                <Tooltip text={props.original.ackUser}><Button style={{ "backgroundColor": "black" }} type={Button.TYPE.PRIMARY}><strong>{initials}</strong></Button></Tooltip>
               </div>
             )
           } else {
             return (
-              <div style={{"textAlign": "center"}}>
+              <div style={{ "textAlign": "center" }}>
                 <Button type={Button.TYPE.PRIMARY} iconType={Button.ICON_TYPE.INTERFACE__OPERATIONS__FOLLOW} onClick={() => this.openAckPopup(props)}>{props.original.ackUser}</Button>
               </div>
             )
@@ -519,18 +520,18 @@ export default class Alarms extends React.Component {
         }
       },
       {
-        Header:() => <strong>Links</strong>,
+        Header: () => <strong>Links</strong>,
         id: 'notes',
         accessor: row => row.note.display,
         width: 200,
         Cell: props => {
-            return (
-              <div>
-                <Button type={Button.TYPE.PRIMARY} iconType={Button.ICON_TYPE.DOCUMENTS__DOCUMENTS__NOTES__A_EDIT} onClick={() => this.openLinkModal(props)}></Button>
-                <a className="notesLink" href={props.original.note.linkText} target="_blank">{props.original.note.display}</a>
-              </div>
-            )
-          },
+          return (
+            <div>
+              <Button type={Button.TYPE.PRIMARY} iconType={Button.ICON_TYPE.DOCUMENTS__DOCUMENTS__NOTES__A_EDIT} onClick={() => this.openLinkModal(props)}></Button>
+              <a className="notesLink" href={props.original.note.linkText} target="_blank">{props.original.note.display}</a>
+            </div>
+          )
+        },
         sortMethod: (a, b, desc) => {
           if (!desc) {
             return !a ? 1 : (!b ? -1 : (a.localeCompare(b)))
@@ -563,9 +564,17 @@ export default class Alarms extends React.Component {
         <Card className="openCards">
           <CardHeader title="Avg Time Open" subtitle={this.state.cardData[0].avgOpenDuration.toString()} />
         </Card>
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <CsvDownload
+            data={this.state.filteredData && this.state.filteredData.length ? this.state.filteredData : this.state.tableData}
+            filename="OpenViolations.csv"
+          >
+            <Icon type={Icon.TYPE.INTERFACE__OPERATIONS__DOWNLOAD} />
+          </CsvDownload>
+        </div>
         <ReactTable
           className="detailTable"
-          data={this.state.filteredData && this.state.filteredData.length ? this.state.filteredData: this.state.tableData}
+          data={this.state.filteredData && this.state.filteredData.length ? this.state.filteredData : this.state.tableData}
           columns={columns}
         />
       </div>
@@ -583,7 +592,7 @@ export default class Alarms extends React.Component {
   globalSearch() {
     let { searchInput, tableData } = this.state;
     let filteredData = tableData.filter(row => {
-      if (row.links.incident_id && row.links.incident_id !== undefined || row.links.incident_id !== null){
+      if (row.links.incident_id && row.links.incident_id !== undefined || row.links.incident_id !== null) {
         return (
           row.company_name.toLowerCase().includes(searchInput.toLowerCase()) ||
           row.label.toLowerCase().includes(searchInput.toLowerCase()) ||
@@ -607,16 +616,16 @@ export default class Alarms extends React.Component {
     this.setState({ filteredData });
   }
 
-  async getCurrentUser(){
+  async getCurrentUser() {
     let data = await UserQuery.query();
     return data.data.name;
   }
 
-  setTempAcks(inc){
+  setTempAcks(inc) {
     let incGroup = [];
     //get all IDs for matching incidents (1 inc -> many violations)
-    for (var k=0; k < this.state.tableData.length; k++) {
-      if (inc == this.state.tableData[k].links.incident_id){
+    for (var k = 0; k < this.state.tableData.length; k++) {
+      if (inc == this.state.tableData[k].links.incident_id) {
         incGroup.push(this.state.tableData[k].id); //push unique violation IDs so we know where to insert ack'd user from Nerdstore
       }
     }
@@ -625,28 +634,28 @@ export default class Alarms extends React.Component {
 
   updateAckCell(user, vioKey) {
     const currentIndex = this.state.tableData.findIndex(vio => vio.id === vioKey),
-          tableCopy = [...this.state.tableData];
+      tableCopy = [...this.state.tableData];
     tableCopy[currentIndex].ackUser = user;
   }
 
-  openAckPopup(props){
+  openAckPopup(props) {
     this.setState({
       ackHidden: false,
       ackInc: props.original.links.incident_id,
     })
   }
 
-  async ackIncident(){
-    let {ackInc} = this.state;
+  async ackIncident() {
+    let { ackInc } = this.state;
 
     let currUser = await this.getCurrentUser(); //get current user making the ack
     let violationsToUpdate = await this.setTempAcks(ackInc); //get all violation IDs (rows) to update with ack user
 
     let r = await this.triggerWebhook(ackInc)
 
-    if (r.status == 200){
+    if (r.status == 200) {
       //loop to update corresponding cells
-      for (var o=0; o < violationsToUpdate.length; o++){
+      for (var o = 0; o < violationsToUpdate.length; o++) {
         let vioToUpdate = violationsToUpdate[o]
         this.saveAckToNerdstore(currUser, vioToUpdate);
         this.updateAckCell(currUser, vioToUpdate);
@@ -655,31 +664,31 @@ export default class Alarms extends React.Component {
         ackHidden: true,
         adminKey: ""
       }, () => {
-        Toast.showToast({title: "Incident Acknowledged!", type: Toast.TYPE.Normal });
+        Toast.showToast({ title: "Incident Acknowledged!", type: Toast.TYPE.Normal });
       })
     } else {
-      Toast.showToast({title: "Failed to acknowledge incident. Response: " + r.status.toString() + "," + r.statusText, type: Toast.TYPE.CRITICAL});
+      Toast.showToast({ title: "Failed to acknowledge incident. Response: " + r.status.toString() + "," + r.statusText, type: Toast.TYPE.CRITICAL });
       this.setState({
         adminKey: ""
       })
     }
   }
 
-  async triggerWebhook(inc){
+  async triggerWebhook(inc) {
     const { adminKey } = this.state;
     const endpoint = 'https://api.newrelic.com/v2/alerts_incidents/' + inc + '/acknowledge.json';
 
 
     if (adminKey == null || adminKey == undefined || adminKey == "") {
-      Toast.showToast({title: "Text Validation Error! Please Check Input.", type: Toast.TYPE.CRITICAL})
+      Toast.showToast({ title: "Text Validation Error! Please Check Input.", type: Toast.TYPE.CRITICAL })
     } else {
-      let resp = await fetch(endpoint, {method: 'put', headers: {'X-Api-Key': adminKey }}); //Note: Admin API Key required for PUTs
+      let resp = await fetch(endpoint, { method: 'put', headers: { 'X-Api-Key': adminKey } }); //Note: Admin API Key required for PUTs
 
       return resp;
     }
   }
 
-  saveAckToNerdstore(usr, aInc){
+  saveAckToNerdstore(usr, aInc) {
     AccountStorageMutation.mutate({
       accountId: this.accountId,
       actionType: AccountStorageMutation.ACTION_TYPE.WRITE_DOCUMENT,
@@ -691,11 +700,11 @@ export default class Alarms extends React.Component {
     }).then((data) => {
     }).catch(error => {
       console.debug(error);
-      Toast.showToast({title: error.message, type: Toast.TYPE.CRITICAL });
+      Toast.showToast({ title: error.message, type: Toast.TYPE.CRITICAL });
     })
   }
 
-  async loadAcksFromNerdstore(){
+  async loadAcksFromNerdstore() {
     let allAcks = [];
     AccountStorageQuery.query({
       accountId: this.accountId,
@@ -703,7 +712,7 @@ export default class Alarms extends React.Component {
       fetchPolicyType: AccountStorageQuery.FETCH_POLICY_TYPE.CACHE_FIRST
     }).then(({ data }) => {
       if (data.length > 0) {
-        for (var ackCount = 0; ackCount < data.length; ackCount++){
+        for (var ackCount = 0; ackCount < data.length; ackCount++) {
           allAcks.push(data[ackCount])
         }
       }
@@ -714,10 +723,10 @@ export default class Alarms extends React.Component {
     return allAcks;
   }
 
-  removeOldAcks(acksFromNerdStore){
+  removeOldAcks(acksFromNerdStore) {
     let loadedData = this.state.tableData;
 
-    acksFromNerdStore.forEach(ack =>{
+    acksFromNerdStore.forEach(ack => {
       var ackIndex = loadedData.findIndex(v => v.id == Number(ack.id));
       if (ackIndex === -1) {
         this.deleteAckFromNerdstore(ack.id)
@@ -727,7 +736,7 @@ export default class Alarms extends React.Component {
     })
   }
 
-  deleteAckFromNerdstore(ackId){
+  deleteAckFromNerdstore(ackId) {
     AccountStorageMutation.mutate({
       accountId: this.accountId,
       actionType: AccountStorageMutation.ACTION_TYPE.DELETE_DOCUMENT,
@@ -736,7 +745,7 @@ export default class Alarms extends React.Component {
     })
   }
 
-  getIconStyle(acct){
+  getIconStyle(acct) {
     if (acct.crits >= 1 || acct.incidents >= 1) {
       return Button.ICON_TYPE.HARDWARE_AND_SOFTWARE__SOFTWARE__SERVICE__S_ERROR
     }
@@ -750,7 +759,7 @@ export default class Alarms extends React.Component {
     }
   }
 
-  getClassStyle(acct){
+  getClassStyle(acct) {
     if (acct.crits >= 1 || acct.incidents >= 1) {
       return "critical";
     }
@@ -775,12 +784,12 @@ export default class Alarms extends React.Component {
   }
 
   updateData(data) {
-    this.setState({config: data, refreshingData: true}, () => {
+    this.setState({ config: data, refreshingData: true }, () => {
       this.refreshAccounts();
     })
   }
 
-  async refreshAccounts(){
+  async refreshAccounts() {
     let l = await this.loadLinksFromNerdStore();
     let a = await this.loadAcksFromNerdstore();
 
@@ -797,32 +806,32 @@ export default class Alarms extends React.Component {
     })
   }
 
-  navigateToIncident(aid){
+  navigateToIncident(aid) {
     const url = "https://alerts.newrelic.com/accounts/" + aid + "/incidents";
     window.open(url, '_blank');
   }
 
-  handleSort(e){
+  handleSort(e) {
     let summarySorted = this.state.accountSummaryData;
     let configSorted = this.state.config;
 
-    if (e.target.textContent == "A-Z"){
-      summarySorted.sort(function(a, b){
+    if (e.target.textContent == "A-Z") {
+      summarySorted.sort(function (a, b) {
         let accountAscA = a.accountName.toLowerCase();
         let accountAscB = b.accountName.toLowerCase();
 
-        if (accountAscA < accountAscB){
+        if (accountAscA < accountAscB) {
           return -1;
         }
 
-        if (accountAscA > accountAscB){
+        if (accountAscA > accountAscB) {
           return 1;
         }
 
         return 0;
       });
 
-      configSorted.accounts.sort(function(a, b){
+      configSorted.accounts.sort(function (a, b) {
         if (a.name.toLowerCase() < b.name.toLowerCase()) {
           return -1;
         }
@@ -841,22 +850,22 @@ export default class Alarms extends React.Component {
     }
 
     if (e.target.textContent == "Z-A") {
-      summarySorted.sort(function(a, b){
+      summarySorted.sort(function (a, b) {
         let accountDescA = a.accountName.toLowerCase();
         let accountDescB = b.accountName.toLowerCase();
 
-        if (accountDescA < accountDescB){
+        if (accountDescA < accountDescB) {
           return 1;
         }
 
-        if (accountDescA > accountDescB){
+        if (accountDescA > accountDescB) {
           return -1;
         }
 
         return 0;
       });
 
-      configSorted.accounts.sort(function(a, b){
+      configSorted.accounts.sort(function (a, b) {
         if (a.name.toLowerCase() < b.name.toLowerCase()) {
           return 1;
         }
@@ -886,7 +895,7 @@ export default class Alarms extends React.Component {
     //first loops to push desired states to top
     for (let acct of this.state.accountSummaryData) {
       let status = this.getClassStyle(acct);
-      if (status == statusToLower){
+      if (status == statusToLower) {
         sortedByStatus.push(acct);
       }
     }
@@ -894,7 +903,7 @@ export default class Alarms extends React.Component {
     //second loop to push the rest
     for (let acct of this.state.accountSummaryData) {
       let status = this.getClassStyle(acct);
-      if (status != statusToLower){
+      if (status != statusToLower) {
         sortedByStatus.push(acct);
       }
     }
@@ -908,8 +917,8 @@ export default class Alarms extends React.Component {
 
   }
 
-  replicateToConfig(){
-    let sortedConfig = {"accounts":[]}
+  replicateToConfig() {
+    let sortedConfig = { "accounts": [] }
 
     this.state.accountSummaryData.forEach(acct => sortedConfig.accounts.push(this.state.config.accounts.find(z => z.name == acct.accountName)));
 
@@ -933,13 +942,13 @@ export default class Alarms extends React.Component {
         </div>
     }
 
-      let start =
+    let start =
       <div>
-        <Icon style={{marginLeft: "60px", marginTop: "5px"}} className="start" type={Icon.TYPE.INTERFACE__ARROW__ARROW_TOP__V_ALTERNATE}/>
-        <HeadingText style={{marginLeft: "25px", marginTop: "0"}}>Start Here</HeadingText>
+        <Icon style={{ marginLeft: "60px", marginTop: "5px" }} className="start" type={Icon.TYPE.INTERFACE__ARROW__ARROW_TOP__V_ALTERNATE} />
+        <HeadingText style={{ marginLeft: "25px", marginTop: "0" }}>Start Here</HeadingText>
       </div>
 
-    if (config && accountSummaryData && tableData && cardData){
+    if (config && accountSummaryData && tableData && cardData) {
       render =
         <div>
           <span className="refreshLabel">Last Refreshed: <strong>{currentTime}</strong></span>
@@ -951,12 +960,12 @@ export default class Alarms extends React.Component {
                   id="acct"
                   iconType={this.getIconStyle(acct)}
                   className={this.getClassStyle(acct)}
-                  onClick={() => {this.navigateToIncident(acct.accountId)}}
+                  onClick={() => { this.navigateToIncident(acct.accountId) }}
                 >{acct.accountName}
-                <br />
-                <label style={{"paddingTop": "10px"}} className="acctLabel" htmlFor="acct"> Critical Violations - <strong>{acct.crits}</strong> </label>
-                <label className="acctLabel" htmlFor="acct"> Warning Violations - <strong>{acct.warns}</strong> </label>
-                <label className="acctLabel" htmlFor="acct"> Unique Incidents - <strong>{acct.incidents}</strong> </label>
+                  <br />
+                  <label style={{ "paddingTop": "10px" }} className="acctLabel" htmlFor="acct"> Critical Violations - <strong>{acct.crits}</strong> </label>
+                  <label className="acctLabel" htmlFor="acct"> Warning Violations - <strong>{acct.warns}</strong> </label>
+                  <label className="acctLabel" htmlFor="acct"> Unique Incidents - <strong>{acct.incidents}</strong> </label>
                 </Button>
               )}
               <div className="sortBy">
@@ -973,14 +982,14 @@ export default class Alarms extends React.Component {
               {this.renderTableData()}
               <Modal hidden={this.state.modalHidden} onClose={() => this._onClose()}>
                 <HeadingText><strong>Edit Link</strong></HeadingText>
-                <TextField value={displayText || ""} onChange={(e) => this.setState({displayText: e.target.value})} label="Text to Display"/>
-                <TextField value={linkText || ""} onChange={(e) => this.setState({linkText: e.target.value})} label="Link To"/>
+                <TextField value={displayText || ""} onChange={(e) => this.setState({ displayText: e.target.value })} label="Text to Display" />
+                <TextField value={linkText || ""} onChange={(e) => this.setState({ linkText: e.target.value })} label="Link To" />
                 <Button type={Button.TYPE.PRIMARY} className="modalBtn" onClick={() => this.saveLinkToNerdStore()}>Save</Button>
                 <Button type={Button.TYPE.DESTRUCTIVE} className="modalBtn" onClick={this._onClose}>Close</Button>
               </Modal>
               <Modal hidden={this.state.ackHidden} onClose={() => this._onAckClose()}>
                 <HeadingText><strong>Acknowledge Incident</strong></HeadingText>
-                <TextField type={TextField.TYPE.PASSWORD} value={adminKey || ""} onChange={(e) => this.setState({adminKey: e.target.value})} label="Admin API Key"/>
+                <TextField type={TextField.TYPE.PASSWORD} value={adminKey || ""} onChange={(e) => this.setState({ adminKey: e.target.value })} label="Admin API Key" />
                 <Button type={Button.TYPE.PRIMARY} className="modalBtn" onClick={() => this.ackIncident(adminKey)}>Acknowledge</Button>
                 <Button type={Button.TYPE.DESTRUCTIVE} className="modalBtn" onClick={this._onAckClose}>Close</Button>
               </Modal>
@@ -991,11 +1000,11 @@ export default class Alarms extends React.Component {
 
     return (
       <>
-      <Configurator
+        <Configurator
           schema={this.schema}   // schema for the config form data
           uiSchema={this.uischema}                             // ui schema for the config form data
           data={config}                                       // this should be wired to the config data from this.state
-          dataChangeHandler={(data)=>{this.updateData(data)}}      // callback function run when config changes
+          dataChangeHandler={(data) => { this.updateData(data) }}      // callback function run when config changes
 
           accountId={this.accountId}                                 // master account
           storageCollectionId="AccountConfig"             // the nerdstorage collection name to store config
@@ -1004,8 +1013,8 @@ export default class Alarms extends React.Component {
           buttonTitle="Configuration"                         // Some customization of the configurator UI
           modalTitle="Account Editor"
           modalHelp="Use the form below to configure accounts to report violations on."
-      />
-      {config == false ? start : render}
+        />
+        {config == false ? start : render}
       </>
     )
   }
