@@ -144,8 +144,8 @@ export default class Alarms extends React.Component {
   }
 
   checkDomain() {
-    let oneDomain = window.location.ancestorOrigins[0]
-    if (oneDomain.includes("eu")) {
+    let oneDomain = window.location.href
+    if (oneDomain.startsWith("https://one.eu.newrelic")) {
       return 'https://api.eu.newrelic.com/v2/alerts_violations.json?only_open=true';
     } else {
       return 'https://api.newrelic.com/v2/alerts_violations.json?only_open=true';
