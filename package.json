@@ -13,7 +13,7 @@
     "email": "opensource+nr1-command-center@newrelic.com"
   },
   "dependencies": {
-    "moment": "^2.24.0",
+    "moment": "^2.29.2",
     "prop-types": "^15.6.2",
     "react": "^16.6.3",
     "react-dom": "^16.6.3",
