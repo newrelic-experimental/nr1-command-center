@@ -6,6 +6,8 @@
 
 A consolidated violation event view that provides details on opened critical or warning events triggered via New Relic Alerts.
 
+# DEPRECATED IN FAVOR OF V2 NERDPACK - PLEASE REFER TO https://github.com/newrelic-experimental/nr1-command-center-v2
+
 ## Usage
 
 Quickly see which accounts have open warning/critical violations or incidents and directly navigate to New Relic Alerts for a given tile.
