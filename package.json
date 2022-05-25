@@ -17,6 +17,7 @@
     "prop-types": "^15.6.2",
     "react": "^16.6.3",
     "react-dom": "^16.6.3",
+    "react-json-to-csv": "^1.0.4",
     "react-jsonschema-form": "^1.8.1",
     "react-table": "^6.11.5"
   },
